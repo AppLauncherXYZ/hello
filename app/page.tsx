@@ -39,6 +39,12 @@ export default function Page() {
   const params = useSearchParams()
   const { user_id, project_id } = React.useMemo(() => extractIds(params), [params])
 
+  // Build /creator link with same query string
+  const creatorHref = React.useMemo(() => {
+    const qs = params.toString()
+    return `/creator${qs ? `?${qs}` : ''}`
+  }, [params])
+
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [blockedUrl, setBlockedUrl] = React.useState<string | null>(null)
@@ -46,7 +52,6 @@ export default function Page() {
   const subscribe = async () => {
     setError(null)
     if (!user_id || !project_id) {
-      // Generic message; does not expose setup details
       setError('Unable to start checkout in this context.')
       return
     }
@@ -64,13 +69,10 @@ export default function Page() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // required by your generated app spec
           productName,
           priceCents,
-          // silently forwarded identifiers (not shown in UI)
           user_id,
           project_id,
-          // legacy fields some parents still validate
           type,
           tier,
           amount,
@@ -100,6 +102,16 @@ export default function Page() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background px-6">
+      {/* Top-right Creator Admin link (only if both IDs are present) */}
+      {!!user_id && !!project_id && (
+        <a
+          href={creatorHref}
+          className="fixed right-4 top-4 z-50 rounded-full border px-3 py-2 text-sm bg-foreground text-background hover:opacity-90"
+        >
+          Creator Admin
+        </a>
+      )}
+
       <div className="text-center space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Hello, World</h1>
         <p className="text-muted-foreground">Welcome to your new app.</p>
@@ -133,4 +145,3 @@ export default function Page() {
     </main>
   )
 }
-
