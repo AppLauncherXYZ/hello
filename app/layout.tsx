@@ -29,3 +29,18 @@ export default function RootLayout({
     </html>
   )
 }
+
+// app/layout.tsx (or any root page)
+import CreatorDashboard from '@/components/CreatorDashboard';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <CreatorDashboard /> {/* auto-shows only for creators */}
+      </body>
+    </html>
+  );
+}
+
