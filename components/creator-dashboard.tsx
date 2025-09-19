@@ -14,17 +14,13 @@ type BalanceResponse = {
 function getParam(sp: URLSearchParams, keys: string[]) {
   for (const k of keys) {
     const v = sp.get(k);
-    if (v && v.trim()) return v.trim();
+    if (v) return v.trim();
   }
   return null;
 }
 
 function useIds() {
-  const [ids, setIds] = React.useState<{ userId: string | null; projectId: string | null }>({
-    userId: null,
-    projectId: null,
-  });
-
+  const [ids, setIds] = React.useState<{ userId: string | null; projectId: string | null }>({ userId: null, projectId: null });
   React.useEffect(() => {
     try {
       const sp = new URLSearchParams(window.location.search);
@@ -35,7 +31,6 @@ function useIds() {
       setIds({ userId: null, projectId: null });
     }
   }, []);
-
   return ids;
 }
 
@@ -55,15 +50,14 @@ export default function CreatorDashboardLite() {
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!userId || !projectId) {
-        setLoading(false);
-        return;
-      }
+      if (!userId || !projectId) { setLoading(false); return; }
       try {
-        const res = await fetch(
-          `/api/credits/balance?userId=${encodeURIComponent(userId)}&projectId=${encodeURIComponent(projectId)}`
-        );
-        if (!res.ok) throw new Error('balance not ok');
+        const res = await fetch('/api/credits/balance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, projectId }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const b: BalanceResponse = await res.json();
 
         const creator =
@@ -72,29 +66,18 @@ export default function CreatorDashboardLite() {
           typeof b?.availableCents === 'number' ||
           typeof b?.pendingCents === 'number';
 
-        if (!cancelled) {
-          setBalance(b || null);
-          setIsCreator(!!creator);
-        }
+        if (!cancelled) { setBalance(b || null); setIsCreator(!!creator); }
       } catch {
-        if (!cancelled) {
-          setBalance(null);
-          setIsCreator(false);
-        }
+        if (!cancelled) { setBalance(null); setIsCreator(false); }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [userId, projectId]);
 
-  // No context or still checking → don’t block the app
   if (!userId || !projectId) return null;
   if (loading) return null;
-
-  // Endpoint missing / not a creator → render nothing
   if (!isCreator || !balance) return null;
 
   const cards = [
@@ -108,52 +91,25 @@ export default function CreatorDashboardLite() {
     <>
       <button
         onClick={() => setOpen(true)}
-        style={{
-          position: 'fixed', right: 20, bottom: 20, zIndex: 9999,
-          padding: '10px 14px', borderRadius: 999,
-          background: '#111', color: '#fff', border: '1px solid #000', cursor: 'pointer',
-        }}
+        style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 9999, padding: '10px 14px', borderRadius: 999, background: '#111', color: '#fff', border: '1px solid #000', cursor: 'pointer' }}
         aria-label="Open Creator Dashboard"
       >
         Creator Dashboard
       </button>
 
       {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
-          <div
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            style={{
-              position: 'absolute', top: 0, right: 0, height: '100%', width: '100%',
-              maxWidth: 520, background: '#fff', boxShadow: '0 0 40px rgba(0,0,0,0.2)',
-              display: 'flex', flexDirection: 'column',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          padding: 16, borderBottom: '1px solid #eee' }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>Creator Dashboard</div>
-                <div style={{ fontSize: 12, color: '#666' }}>Project: <code>{projectId}</code></div>
-                <div style={{ fontSize: 12, color: '#666' }}>User: <code>{userId}</code></div>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-              >
-                Close
-              </button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000 }}>
+          <div style={{ position: 'absolute', right: 20, bottom: 76, width: 360, background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 700 }}>Creator Summary</div>
+              <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: 'transparent', border: 0, fontSize: 18, cursor: 'pointer' }}>×</button>
             </div>
 
-            <div style={{ padding: 16, overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {cards.map(c => (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {cards.map((c) => (
                   <div key={c.k} style={{ border: '1px solid #eee', borderRadius: 12, padding: 12 }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>{c.label}</div>
+                    <div style={{ fontSize: 12, color: '#777', marginBottom: 8 }}>{c.label}</div>
                     <div style={{ fontSize: 22, fontWeight: 700 }}>{c.value}</div>
                   </div>
                 ))}
@@ -168,3 +124,4 @@ export default function CreatorDashboardLite() {
     </>
   );
 }
+

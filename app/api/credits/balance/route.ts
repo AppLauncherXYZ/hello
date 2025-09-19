@@ -7,15 +7,18 @@ const PARENT_BALANCE_READ = `${PARENT_BASE_URL}/api/credits/balance-read`;
 
 export const runtime = 'nodejs';
 
+const BAD = /…|^\s*$|undefined|null/i;       // block ellipsis/empty/undefined/null
+const LOOKS_OK = /^[A-Za-z0-9._-]{4,}$/;     // adjust if your IDs have a stricter format
+
 export async function POST(req: Request) {
   try {
     const { userId, projectId } = await req.json();
-    if (!userId || !projectId) {
-      return NextResponse.json({ error: 'Missing userId or projectId' }, { status: 400 });
+
+    if (!userId || !projectId || BAD.test(userId) || BAD.test(projectId) || !LOOKS_OK.test(userId) || !LOOKS_OK.test(projectId)) {
+      return NextResponse.json({ error: 'Invalid userId/projectId' }, { status: 400 });
     }
 
-    const url =
-      `${PARENT_BALANCE_READ}?userId=${encodeURIComponent(userId)}&projectId=${encodeURIComponent(projectId)}`;
+    const url = `${PARENT_BALANCE_READ}?userId=${encodeURIComponent(userId)}&projectId=${encodeURIComponent(projectId)}`;
 
     const upstream = await fetch(url, { method: 'GET', cache: 'no-store' });
 

@@ -1,12 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-// Assume you already have these in your app context or props
-const userId = '…';     // e.g. from logged-in creator
-const projectId = '…';  // e.g. from current project
+function norm(v?: string | null) { return (v ?? '').trim(); }
+function extractIds(sp: URLSearchParams) {
+  const userId =
+    norm(sp.get('user_id')) ||
+    norm(sp.get('userId')) ||
+    norm(sp.get('uid'));
+  const projectId =
+    norm(sp.get('project_id')) ||
+    norm(sp.get('projectId'));
+  return { userId, projectId };
+}
 
 export default function CreatorPage() {
+  const sp = useSearchParams();
+  const { userId, projectId } = extractIds(sp);
+
   const [data, setData] = useState<null | { projectId: string; creditsRemaining: number; isPaid: boolean }>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -14,23 +26,28 @@ export default function CreatorPage() {
   useEffect(() => {
     async function loadBalance() {
       try {
-        setLoading(true);
+        setError(null);
+        if (!userId || !projectId) {
+          setError('Missing userId/projectId');
+          setLoading(false);
+          return;
+        }
         const res = await fetch('/api/credits/balance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, projectId }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(()=>'')}`);
         const json = await res.json();
         setData(json);
       } catch (e: any) {
-        setError(e.message || 'Couldn’t load balance.');
+        setError(e?.message || 'Couldn’t load balance.');
       } finally {
         setLoading(false);
       }
     }
     loadBalance();
-  }, []);
+  }, [userId, projectId]);
 
   if (loading) return <p className="p-6">Loading…</p>;
   if (error) return <p className="p-6 text-red-600">{error}</p>;
