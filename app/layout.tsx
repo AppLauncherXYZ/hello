@@ -31,7 +31,7 @@ export default function RootLayout({
 }
 
 // app/layout.tsx (or any root page)
-import CreatorDashboard from '@/components/CreatorDashboard';
+import CreatorDashboard from '@/components/creator-dashboard';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
