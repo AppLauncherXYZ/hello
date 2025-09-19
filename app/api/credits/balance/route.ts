@@ -1,82 +1,43 @@
-// app/api/credits/balance/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Same fallback domain style you already use:
 const PARENT_BASE =
   process.env.PARENT_API_BASE ||
   process.env.NEXT_PUBLIC_PARENT_API_BASE ||
   'https://applauncher.xyz';
 
-function tidyBase(b: string) {
-  return b.replace(/\/+$/, '');
-}
-
-function extractProjectId(req: NextRequest) {
-  const url = new URL(req.url);
-  const q = url.searchParams;
-  // Parent requires projectId; we accept legacy keys but send projectId upstream
-  const projectId =
-    (q.get('projectId') ||
-      q.get('project_id') ||
-      '')!.trim();
-  return projectId;
-}
-
-export async function HEAD() {
-  // health check for clients that probe endpoints
-  return new NextResponse(null, { status: 204 });
+function tidy(b: string) { return b.replace(/\/+$/, ''); }
+function ids(req: NextRequest) {
+  const q = new URL(req.url).searchParams;
+  const userId = (q.get('userId') || q.get('user_id') || q.get('uid') || '').trim();
+  const projectId = (q.get('projectId') || q.get('project_id') || '').trim();
+  return { userId, projectId };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const projectId = extractProjectId(req);
+    const { userId, projectId } = ids(req);
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
 
-    const parentUrl = new URL('/api/credits/balance', tidyBase(PARENT_BASE));
-    parentUrl.searchParams.set('projectId', projectId);
+    // Call the new parent read route — no cookies/CORS needed
+    const url = new URL('/api/(derivative)/credits/balance-read', tidy(PARENT_BASE));
+    url.searchParams.set('projectId', projectId);
+    if (userId) url.searchParams.set('userId', userId);
 
-    // timebox to avoid hanging builds
-    const ac = new AbortController();
-    const t = setTimeout(() => ac.abort(), 8000);
-
-    const headers: Record<string, string> = {};
-    const auth = req.headers.get('authorization');
-    const cookie = req.headers.get('cookie');
-    if (auth) headers['authorization'] = auth;
-    if (cookie) headers['cookie'] = cookie;
-
-    const r = await fetch(parentUrl.toString(), {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-      signal: ac.signal,
-    }).finally(() => clearTimeout(t));
-
+    const r = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
     const text = await r.text();
-    const contentType = r.headers.get('content-type') || 'application/json';
 
     return new NextResponse(text, {
       status: r.status,
-      headers: { 'content-type': contentType },
+      headers: { 'content-type': r.headers.get('content-type') || 'application/json' },
     });
-  } catch (err: any) {
-    if (err?.name === 'AbortError') {
-      return NextResponse.json(
-        { error: 'Upstream timeout' },
-        { status: 504 }
-      );
-    }
-    console.error('proxy /api/credits/balance error:', err);
-    return NextResponse.json(
-      { error: err?.message || 'Proxy failed' },
-      { status: 500 }
-    );
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Proxy failed' }, { status: 500 });
   }
 }
+
